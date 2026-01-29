@@ -3,3 +3,6 @@ exclude = .git,__pycache__,venv*,.venv*,build,dist,.local,.#*,#*,*~
 max-line-length = 84
 inline-quotes = "
 extend-ignore = E265,E306
+per-file-ignores =
+    # line too long
+    src/devkit/stubs/pimoroni/picoscroll.py: E501
