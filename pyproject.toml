@@ -1,0 +1,44 @@
+[project]
+name = "pico-devkit"
+version = "0.0.0"
+authors = [{ name = "Gary Benson", email = "gary@gbenson.net" }]
+description = "MicroPython development environment"
+readme = "README.md"
+dependencies = [
+    "flake8",
+    "flake8-quotes",
+    "mypy",
+    "pytest-cov",
+    "wheel",
+]
+
+[project.urls]
+Homepage = "https://github.com/gbenson/pico-devkit"
+
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[tool.mypy]
+warn_unused_configs = true
+strict = true
+exclude = [
+    "src/target",
+]
+
+[tool.pytest.ini_options]
+addopts = "--cov=src"
+log_level="debug"
+
+[tool.coverage.run]
+omit = [
+    "*/.venv/*",
+]
+
+[tool.coverage.report]
+skip_covered = true
+exclude_lines = [
+    "pragma: no cover",
+    'if __name__ == "__main__":',
+    "raise NotImplementedError",
+]
