@@ -1,6 +1,6 @@
 import pytest
 
-import picoscroll
+from devkit.stubs.pimoroni import picoscroll
 
 
 @pytest.mark.parametrize(
