@@ -1,8 +1,8 @@
 import logging
 
-from itertools import count
+from dataclasses import dataclass
 from time import time
-from typing import Any
+from typing import Any, Optional
 from unittest.mock import Mock, NonCallableMock, patch
 
 import pytest
@@ -67,14 +67,14 @@ def test_set_pixel_errors(
 def test_pong_e2e(pygame: Mock) -> None:
     _common_setup(pygame)
 
-    frame_counter = count()
-    pygame.display.flip = lambda: next(frame_counter)
-
+    deadliner = Deadliner(timeout=1)
+    pygame.display.flip = deadliner
     assert len(pygame.mock_calls) == 0  # sanity
 
     try:
         start_time = time()
-        main()
+        with pytest.raises(DeadlineExceeded):
+            main()
     finally:
         d(f"ran for {time() - start_time:.2f}s")
         d(f"len(pygame.mock_calls) = {len(pygame.mock_calls)}")
@@ -87,8 +87,9 @@ def test_pong_e2e(pygame: Mock) -> None:
     pygame.display.set_mode.assert_called_once_with((629, 259))
     pygame.display.set_caption.called_once_with("Pico Scroll")
 
-    num_frames = next(frame_counter)
-    assert num_frames == 1 + 17 * 7
+    num_frames = deadliner.num_calls
+    d(f"num_frames={num_frames}")
+    assert 55 < num_frames < 65  # it targets 60fps
 
 
 # Helpers
@@ -110,3 +111,22 @@ def _common_setup(pygame: Mock):
     pygame.draw.rect = checked_draw_rect
 
     assert len(pygame.mock_calls) == 0  # sanity
+
+
+@dataclass
+class Deadliner:
+    timeout: Optional[float] = None
+    deadline: Optional[float] = None
+    num_calls: int = 0
+
+    def __call__(self) -> None:
+        self.num_calls += 1
+        if self.deadline is not None:
+            if time() > self.deadline:
+                raise DeadlineExceeded
+        elif self.timeout is not None:
+            self.deadline = time() + self.timeout
+
+
+class DeadlineExceeded(TimeoutError):
+    pass
