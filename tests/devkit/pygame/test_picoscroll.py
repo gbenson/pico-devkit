@@ -1,13 +1,17 @@
 import logging
 
 from dataclasses import dataclass
+from collections.abc import Iterable
+from itertools import cycle, product
 from time import time
 from typing import Any, Optional
 from unittest.mock import Mock, NonCallableMock, patch
 
 import pytest
 
-from pygame import Rect
+import pygame as _pygame
+
+from pygame import K_a, K_b, K_x, K_y, K_z, KEYUP, KEYDOWN, Rect
 
 from devkit.pygame import PicoScroll
 from target.pong import main
@@ -67,8 +71,27 @@ def test_set_pixel_errors(
 def test_pong_e2e(pygame: Mock) -> None:
     _common_setup(pygame)
 
+    key_sequence = cycle(
+        NonCallableMock(type=type, key=key)
+        for key, type in product(
+                (K_a, K_b, K_x, K_y, K_z),
+                (KEYDOWN, KEYUP),
+        )
+    )
+
+    last_key = time()
+    def keysmasher() -> Iterable[Mock]:
+        nonlocal last_key
+        if time() - last_key < 0.02:
+            return []
+        last_key = time()
+        return [next(key_sequence)]
+
     deadliner = Deadliner(timeout=1)
+
+    pygame.event.get = keysmasher
     pygame.display.flip = deadliner
+
     assert len(pygame.mock_calls) == 0  # sanity
 
     try:
@@ -101,6 +124,10 @@ def _common_setup(pygame: Mock):
         assert surface is display
         assert rect.w == 37
         assert rect.h == 37
+
+    DIRECT_ATTRS = "K_a K_b K_q K_x K_y KEYUP KEYDOWN QUIT".split()
+    for attr in DIRECT_ATTRS:
+        setattr(pygame, attr, getattr(_pygame, attr))
 
     pygame.get_init.return_value = False
     pygame.init.return_value = (5, 0)

@@ -1,3 +1,4 @@
+from picoscroll import PicoScroll as _PicoScroll
 from utime import ticks_us, ticks_diff, sleep_us
 
 _S_TO_US = 1_000_000
@@ -64,3 +65,56 @@ class Clock:
         if time_to_wait < 0:
             return
         sleep_us(time_to_wait)
+
+
+class FPSRunner:
+    def __init__(self, *, clock=None):
+        self.clock = clock or Clock()
+
+    def run(self):
+        last_time = self.clock.advance()
+        while True:
+            time = self.clock.advance()
+            self.tick(time - last_time)
+            last_time = time
+
+
+class Display:
+    def __init__(self, provider, gamma=1):
+        self.gamma = gamma
+        self._set_pixel = provider.set_pixel
+        self.clear = provider.clear
+        self.show = provider.show
+
+    def set_pixel(self, x, y, v):
+        v = round(255 * ((v / 255) ** self.gamma))
+        self._set_pixel(x, y, v)
+
+
+class Buttons:
+    def __init__(self, provider, **buttons):
+        for attr, code in buttons.items():
+            button = Button(provider, code)
+            setattr(self, attr, button)
+
+
+class Button:
+    def __init__(self, provider, code):
+        self._provider = provider
+        self._button = code
+
+    def is_pressed(self):
+        return self._provider.is_pressed(self._button)
+
+
+class PicoScroll:
+    def __init__(self, scroll=None, gamma=3):
+        scroll = scroll or _PicoScroll()
+        self.display = Display(scroll, gamma)
+        self.buttons = Buttons(
+            scroll,
+            A=scroll.BUTTON_A,
+            B=scroll.BUTTON_B,
+            X=scroll.BUTTON_X,
+            Y=scroll.BUTTON_Y,
+        )

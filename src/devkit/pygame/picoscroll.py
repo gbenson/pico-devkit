@@ -1,4 +1,5 @@
 from collections.abc import Container
+from typing import ClassVar
 
 import pygame
 
@@ -6,6 +7,13 @@ from ..stubs.pimoroni.picoscroll import PicoScroll as _PicoScroll
 
 
 class PicoScroll(_PicoScroll):
+    _KEYMAP: ClassVar[dict[int, int]] = {
+        pygame.K_a: _PicoScroll.BUTTON_A,
+        pygame.K_b: _PicoScroll.BUTTON_B,
+        pygame.K_x: _PicoScroll.BUTTON_X,
+        pygame.K_y: _PicoScroll.BUTTON_Y,
+    }
+
     def __init__(self, *, window_title: str = "Pico Scroll", gamma: float = 3):
         if not pygame.get_init():
             pygame.init()
@@ -22,6 +30,8 @@ class PicoScroll(_PicoScroll):
         self._num_pixels = w * h
         self._fb = bytearray()
         self._gamma = 1 / gamma
+
+        self._is_pressed = [False] * 4
 
         self.clear()
         self.show()
@@ -57,6 +67,28 @@ class PicoScroll(_PicoScroll):
                 pygame.draw.rect(surface, (v, v, v), rect)
 
         pygame.display.flip()
+
+    def is_pressed(self, button: int) -> bool:
+        self._handle_events()
+        return self._is_pressed[button]
+
+    def _handle_events(self) -> None:
+        for event in pygame.event.get():
+            match event.type:
+                case pygame.QUIT:
+                    raise SystemExit  # pragma: no cover
+                case pygame.KEYDOWN:
+                    self._handle_keyevent(event.key, True)
+                case pygame.KEYUP:
+                    if event.key == pygame.K_q:
+                        raise SystemExit  # pragma: no cover
+                    self._handle_keyevent(event.key, False)
+
+    def _handle_keyevent(self, keycode: int, is_pressed: bool) -> None:
+        button = self._KEYMAP.get(keycode)
+        if button is None:
+            return
+        self._is_pressed[button] = is_pressed
 
 
 def _raise_unless_valid_int(
