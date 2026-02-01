@@ -93,9 +93,14 @@ class Display:
 
 class Buttons:
     def __init__(self, provider, **buttons):
+        self._all = []
         for attr, code in buttons.items():
             button = Button(provider, code)
             setattr(self, attr, button)
+            self._all.append(button)
+
+    def __iter__(self):
+        return iter(self._all)
 
 
 class Button:
