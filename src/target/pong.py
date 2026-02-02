@@ -1,3 +1,7 @@
+import random
+
+from math import sqrt
+
 from engine import FPSRunner, PicoScroll
 
 
@@ -69,7 +73,14 @@ class Game(FPSRunner):
             self.state = RUNNING
             return
 
-        self.ball.update(delta_t, self.players)
+        ball = self.ball
+        ball.update(delta_t, self.players)
+        if ball.x + ball.radius < 0:
+            print("player[1] wins!")
+            self.reset()
+        elif ball.x - ball.radius > 16:
+            print("player[0] wins!")
+            self.reset()
 
     def _draw(self):
         d = self.display
@@ -94,6 +105,10 @@ class Player:
         self.up = up_button
         self.down = down_button
         self.speed = 12
+
+    def is_at(self, y):
+        cy = self.y
+        return y >= cy - 1 and y <= cy + 1
 
     def update(self, delta_t):
         move_up = self.up.is_pressed()
@@ -129,15 +144,85 @@ class Player:
 
 
 class Ball:
-    def __init__(self):
+    def __init__(self, radius=0.5):
+        self.radius = radius
         self.reset()
 
-    def reset(self):
+    def reset(self, speed=10):
         self.x = 8
-        self.y = 5  # XXX randomize
+        margin = self.radius + 0.1
+        self.y = random.uniform(margin, 7 - margin)
+        rx = random.choice((0, 16)) - self.x
+        ry = random.uniform(-6, 12) - self.y
+        scale = speed / sqrt(rx * rx + ry * ry)
+        self.vx = rx * scale
+        self.vy = ry * scale
 
-    def update(self, delta_t, players):
-        pass
+    def update(self, dt, players):
+        radius = self.radius
+        # top and bottom edges of screen
+        top = radius
+        bottom = 7 - radius
+        # left and right edges of paddles
+        left = 1 + radius
+        right = 16 - radius
+
+        while dt > 0:
+            dx = self.vx * dt
+            dy = self.vy * dt
+
+            x = self.x + dx
+            y = self.y + dy
+
+            # top edge?
+            excess_dy = y - top
+            if excess_dy < 0:
+                excess_dt = dt * excess_dy / dy
+                self.x += self.vx * (dt - excess_dt)
+                self.y = top
+                self.vy *= -1
+                dt = excess_dt
+                continue
+
+            # bottom edge?
+            excess_dy = y - bottom
+            if excess_dy > 0:
+                excess_dt = dt * excess_dy / dy
+                self.x += self.vx * (dt - excess_dt)
+                self.y = bottom
+                self.vy *= -1
+                dt = excess_dt
+                continue
+
+            # left player
+            excess_dx = x - left
+            if excess_dx < 0:
+                excess_dt = dt * excess_dx / dx
+                hit_y = self.y + self.vy * (dt - excess_dt)
+                if players[0].is_at(hit_y):
+                    self.x = left
+                    self.y = hit_y
+                    self.vx *= -1
+                    # english?
+                    dt = excess_dt
+                    continue
+
+            # right player
+            excess_dx = x - right
+            if excess_dx > 0:
+                excess_dt = dt * excess_dx / dx
+                hit_y = self.y + self.vy * (dt - excess_dt)
+                if players[1].is_at(hit_y):
+                    self.x = right
+                    self.y = hit_y
+                    self.vx *= -1
+                    # english?
+                    dt = excess_dt
+                    continue
+
+            self.x = x
+            self.y = y
+            break
 
     def draw(self, set_pixel):
         set_pixel(int(self.x), int(self.y), 255)
