@@ -11,7 +11,7 @@ import pytest
 
 import pygame as _pygame
 
-from pygame import K_a, K_b, K_x, K_y, K_z, KEYUP, KEYDOWN, Rect
+from pygame import K_a, K_b, K_x, K_y, K_s, KEYUP, KEYDOWN, Rect
 
 from devkit.pygame import PicoScroll
 from target.pong import main
@@ -74,7 +74,7 @@ def test_pong_e2e(pygame: Mock) -> None:
     key_sequence = cycle(
         NonCallableMock(type=type, key=key)
         for key, type in product(
-                (K_a, K_b, K_x, K_y, K_z),
+                (K_a, K_b, K_x, K_y, K_s),
                 (KEYDOWN, KEYUP),
         )
     )

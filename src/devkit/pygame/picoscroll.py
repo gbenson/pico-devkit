@@ -12,6 +12,16 @@ class PicoScroll(_PicoScroll):
         pygame.K_b: _PicoScroll.BUTTON_B,
         pygame.K_x: _PicoScroll.BUTTON_X,
         pygame.K_y: _PicoScroll.BUTTON_Y,
+
+        # for A, {Z,C} = up, down
+        pygame.K_z: _PicoScroll.BUTTON_B,
+        pygame.K_c: _PicoScroll.BUTTON_B,
+
+        # for {J,K,L}, M = up, down
+        pygame.K_j: _PicoScroll.BUTTON_X,
+        pygame.K_k: _PicoScroll.BUTTON_X,
+        pygame.K_l: _PicoScroll.BUTTON_X,
+        pygame.K_m: _PicoScroll.BUTTON_Y,
     }
 
     def __init__(self, *, window_title: str = "Pico Scroll", gamma: float = 3):

@@ -149,7 +149,7 @@ class Ball:
         self.reset()
 
     def reset(self, speed=10):
-        self.x = 8
+        self.x = 8.5  # ball at [8..9)
         margin = self.radius + 0.1
         self.y = random.uniform(margin, 7 - margin)
         rx = random.choice((0, 16)) - self.x
@@ -225,7 +225,37 @@ class Ball:
             break
 
     def draw(self, set_pixel):
-        set_pixel(int(self.x), int(self.y), 255)
+        x = self.x - 0.5
+        y = self.y - 0.5
+
+        # A B
+        # C D
+
+        # xbd is the x of the B and D, so xbd<0 means everything's offscreen.
+        # The +2,-1 stuff is because python `int` rounds towards zero but we
+        # need rounding like `math.floor`.  if xbd<0 then 1<=vac<2 which is
+        # broken.
+        xbd = int(x + 2) - 1
+        if xbd < 0:
+            return
+        xac = xbd - 1
+        vbd = x - xac
+        vac = 1 - vbd
+
+        ycd = int(y + 2) - 1
+        if ycd < 0:
+            return
+        yab = ycd - 1
+        vcd = y - yab
+        vab = 1 - vcd
+
+        for x, y, v in (
+                (xac, yab, vac * vab),
+                (xbd, yab, vbd * vab),
+                (xac, ycd, vac * vcd),
+                (xbd, ycd, vbd * vcd)):
+            if 0 <= x < 17 and 0 <= y < 7:
+                set_pixel(x, y, v * 255)
 
 
 def main(*args, **kwargs):
