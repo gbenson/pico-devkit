@@ -1,6 +1,6 @@
 import random
 
-from math import sqrt
+from math import atan2, cos, pi, sin, sqrt
 
 from engine import FPSRunner, PicoScroll
 
@@ -105,26 +105,31 @@ class Player:
         self.up = up_button
         self.down = down_button
         self.speed = 12
+        self.vy = 0
 
     def is_at(self, y):
         cy = self.y
-        return y >= cy - 1 and y <= cy + 1
+        return y >= cy - 1.25 and y <= cy + 1.25
 
     def update(self, delta_t):
         move_up = self.up.is_pressed()
         move_down = self.down.is_pressed()
         if not (move_up ^ move_down):
+            self.vy = 0
             return
+        y0 = y1 = self.y
         if move_up:
-            y = self.y
-            y -= self.speed * delta_t
-            y = max(y, 1)  # bat at [0..2)
-            self.y = y
+            y1 -= self.speed * delta_t
+            y1 = max(y1, 1)  # bat at [0..2)
         else:  # move down
-            y = self.y
-            y += self.speed * delta_t
-            y = min(y, 6)  # bat at [5..7)
-            self.y = y
+            y1 += self.speed * delta_t
+            y1 = min(y1, 6)  # bat at [5..7)
+        self.y = y1
+
+        # include a decaying component of last frame's speed in this
+        # frame's speed; we have buttons, not a trackball, and we'd
+        # have pretty much the same vy for every collision otherwise.
+        self.vy = y1 - y0 + max(1 - delta_t, 0) * self.vy
 
     def draw(self, set_pixel):
         x = self.x
@@ -144,8 +149,9 @@ class Player:
 
 
 class Ball:
-    def __init__(self, radius=0.5):
+    def __init__(self, radius=0.5, max_english=pi / 5):
         self.radius = radius
+        self.max_english = max_english  # do not let it turn around!
         self.reset()
 
     def reset(self, speed=10):
@@ -157,8 +163,9 @@ class Ball:
         scale = speed / sqrt(rx * rx + ry * ry)
         self.vx = rx * scale
         self.vy = ry * scale
+        self.spin = 0
 
-    def update(self, dt, players):
+    def update(self, delta_t, players):
         radius = self.radius
         # top and bottom edges of screen
         top = radius
@@ -167,6 +174,7 @@ class Ball:
         left = 1 + radius
         right = 16 - radius
 
+        dt = delta_t
         while dt > 0:
             dx = self.vx * dt
             dy = self.vy * dt
@@ -181,6 +189,7 @@ class Ball:
                 self.x += self.vx * (dt - excess_dt)
                 self.y = top
                 self.vy *= -1
+                self._english()
                 dt = excess_dt
                 continue
 
@@ -191,6 +200,7 @@ class Ball:
                 self.x += self.vx * (dt - excess_dt)
                 self.y = bottom
                 self.vy *= -1
+                self._english()
                 dt = excess_dt
                 continue
 
@@ -199,11 +209,13 @@ class Ball:
             if excess_dx < 0:
                 excess_dt = dt * excess_dx / dx
                 hit_y = self.y + self.vy * (dt - excess_dt)
-                if players[0].is_at(hit_y):
+                player = players[0]
+                if player.is_at(hit_y):
                     self.x = left
                     self.y = hit_y
                     self.vx *= -1
-                    # english?
+                    self.spin -= player.vy
+                    self._english()
                     dt = excess_dt
                     continue
 
@@ -212,17 +224,39 @@ class Ball:
             if excess_dx > 0:
                 excess_dt = dt * excess_dx / dx
                 hit_y = self.y + self.vy * (dt - excess_dt)
-                if players[1].is_at(hit_y):
+                player = players[1]
+                if player.is_at(hit_y):
                     self.x = right
                     self.y = hit_y
                     self.vx *= -1
-                    # english?
+                    self.spin += player.vy
+                    self._english()
                     dt = excess_dt
                     continue
 
             self.x = x
             self.y = y
             break
+
+        k = min(delta_t, 0.1)
+        self.spin *= (1 - k)  # decay
+        kk = 1 + k * 0.02
+        self.vx *= kk  # faster!
+        self.vy *= kk
+
+    def _english(self, spinfrac=0.6):
+        spin = self.spin * spinfrac
+        self.spin -= spin
+        if spin < 0:
+            spin = max(spin, -self.max_english)
+        else:
+            spin = min(spin, self.max_english)
+        vx = self.vx
+        vy = self.vy
+        r = sqrt(vx * vx + vy * vy)
+        theta = atan2(vy, vx) + spin
+        self.vx = r * cos(theta)
+        self.vy = r * sin(theta)
 
     def draw(self, set_pixel):
         x = self.x - 0.5

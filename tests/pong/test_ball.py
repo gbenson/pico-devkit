@@ -50,7 +50,7 @@ def test_bounce(start_pos, delta, expect_pos):
 
     ball.update(1, game.players)
 
-    assert (ball.x, ball.y) == expect_pos
+    assert (ball.x, ball.y) == pytest.approx(expect_pos)
 
 
 @patch("target.engine._PicoScroll")
