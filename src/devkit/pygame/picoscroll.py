@@ -61,6 +61,21 @@ class PicoScroll(_PicoScroll):
 
         self._fb[y * width + x] = level
 
+    def show_bitmap_1d(self, bitmap: bytearray, level: int, offset: int) -> None:
+        if not isinstance(bitmap, bytearray):
+            raise TypeError("object with buffer protocol required")
+
+        columns = range(len(bitmap))
+        width, height = self._get_size()
+        for x in range(width):
+            if (i := offset + x) in columns:
+                col = bitmap[i]
+            else:
+                col = 0
+            for y in range(height):
+                self.set_pixel(x, y, level if col & 1 else 0)
+                col >>= 1
+
     def show(self) -> None:
         surface = self._display
         gamma = self._gamma
