@@ -82,6 +82,11 @@ class FPSRunner:
 class Display:
     def __init__(self, provider, gamma=1):
         self.gamma = gamma
+
+        self.width = provider.get_width()
+        self.height = provider.get_height()
+        self.size = self.width, self.height
+
         self._set_pixel = provider.set_pixel
         self.clear = provider.clear
         self.show = provider.show

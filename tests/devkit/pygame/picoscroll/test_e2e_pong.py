@@ -11,7 +11,7 @@ import pytest
 
 from pygame import K_a, K_b, K_x, K_y, K_s, KEYUP, KEYDOWN
 
-from target.pong import main
+from target.pong import Game, main
 
 logger = logging.getLogger(__name__)
 d = logger.info
@@ -19,7 +19,7 @@ d = logger.info
 
 # Tests
 
-def test_pong_e2e(pygame: Mock) -> None:
+def test_pong_e2e(pygame: Mock, monkeypatch: pytest.MonkeyPatch) -> None:
     key_sequence = cycle(
         NonCallableMock(type=type, key=key)
         for key, type in product(
@@ -43,6 +43,7 @@ def test_pong_e2e(pygame: Mock) -> None:
 
     assert len(pygame.mock_calls) == 0  # sanity
 
+    monkeypatch.setattr(Game, "DEBOUNCE", 0)
     try:
         start_time = time()
         with pytest.raises(DeadlineExceeded):

@@ -75,7 +75,7 @@ def test_no_draw_offscreen(picoscroll_cls: Mock):
 
     game = Game()
     picoscroll_cls.assert_called_once_with()
-    paddle_pixels = 6  # 3 for each paddle
+    paddle_pixels = 10  # 3 for each paddle + 4 for field
     assert pixels_set == paddle_pixels
 
     game.draw_ball = True

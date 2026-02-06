@@ -8,12 +8,15 @@ from engine import FPSRunner, PicoScroll
 INSERT_COIN = object()
 COUNTDOWN = object()
 RUNNING = object()
+PLAYER_SCORED = object()
 
 ANY_BUTTON_DOWN = object()
 ALL_BUTTONS_UP = object()
 
 
 class Game(FPSRunner):
+    DEBOUNCE = 0.5
+
     def __init__(self, scroll=None, **kwargs):
         super().__init__(**kwargs)
 
@@ -32,20 +35,41 @@ class Game(FPSRunner):
     def reset(self):
         self.state = INSERT_COIN
         self.draw_ball = False
+        self.draw_field = True
+        self.draw_players = True
+        self.animation = None
+        self.wait_for_button_press()
+
+    def congratulate(self, player):
+        self.state = PLAYER_SCORED
+        self.draw_ball = False
         self.draw_field = False
+        self.draw_players = False
+        self.animation = ScoreAnimation(not bool(player.x))
         self.wait_for_button_press()
 
     def wait_for_button_press(self):
         self._awaiting_interaction = ANY_BUTTON_DOWN
+        self._debounce = self.DEBOUNCE
         self._draw()
 
     def tick(self, delta_t):
         self._update(delta_t)
-        if self._awaiting_interaction:
+        if self.state is INSERT_COIN:
             return
         self._draw()
 
     def _update(self, delta_t):
+        if self.animation:
+            self.animation.update(delta_t)
+
+        if self._awaiting_interaction and (debounce := self._debounce):
+            debounce -= delta_t
+            if debounce > 0:
+                self._debounce = debounce
+                return
+            self._debounce = None
+
         if self._awaiting_interaction is ANY_BUTTON_DOWN:
             if not any(b.is_pressed() for b in self.buttons):
                 return
@@ -56,7 +80,9 @@ class Game(FPSRunner):
             if any(b.is_pressed() for b in self.buttons):
                 return
             self._awaiting_interaction = None
+            self.animation = None
             self.draw_field = True
+            self.draw_players = True
             self.countdown = 2
             self.state = COUNTDOWN
             return
@@ -76,19 +102,21 @@ class Game(FPSRunner):
         ball = self.ball
         ball.update(delta_t, self.players)
         if ball.x + ball.radius < 0:
-            print("player[1] wins!")
-            self.reset()
+            self.congratulate(self.players[1])
         elif ball.x - ball.radius > 16:
-            print("player[0] wins!")
-            self.reset()
+            self.congratulate(self.players[0])
 
     def _draw(self):
         d = self.display
         set_pixel = d.set_pixel
         d.clear()
         try:
-            for p in self.players:
-                p.draw(set_pixel)
+            if self.animation:
+                self.animation.draw(d)
+
+            if self.draw_players:
+                for p in self.players:
+                    p.draw(set_pixel)
             if self.draw_ball:
                 self.ball.draw(set_pixel)
             if self.draw_field:
@@ -176,6 +204,13 @@ class Ball:
 
         dt = delta_t
         while dt > 0:
+            # always be moving towards a player
+            chk_vx = abs(self.vx)
+            if chk_vx < 0.05:
+                self.vx = random.uniform(-1, 1)
+            elif chk_vx < 0.1:
+                self.vx *= 1.1
+
             dx = self.vx * dt
             dy = self.vy * dt
 
@@ -216,6 +251,8 @@ class Ball:
                     self.vx *= -1
                     self.spin -= player.vy
                     self._english()
+                    if self.vx < 0:
+                        self.vx *= -1  # move AWAY from the player!
                     dt = excess_dt
                     continue
 
@@ -231,6 +268,8 @@ class Ball:
                     self.vx *= -1
                     self.spin += player.vy
                     self._english()
+                    if self.vx > 0:
+                        self.vx *= -1  # move AWAY from the player!
                     dt = excess_dt
                     continue
 
@@ -290,6 +329,47 @@ class Ball:
                 (xbd, ycd, vbd * vcd)):
             if 0 <= x < 17 and 0 <= y < 7:
                 set_pixel(x, y, v * 255)
+
+
+class ScoreAnimation:
+    BITMAP = b'""*>\x14\x00\x1c\x08\x08\x08\x1c\x00"2*&"'
+
+    def __init__(self, rotate_180=False):
+        self.rotate_180 = rotate_180
+        self.offsets = (0, 1, 2)
+        self.period = 0.09
+        self.time = 0
+        self.update(0)
+
+    def update(self, delta_t):
+        time = self.time + delta_t
+        self.time = time
+        nperiods = int(time / self.period)
+        offsets = self.offsets
+        self.offset = offsets[nperiods % len(offsets)]
+
+    def draw(self, display):
+        width, height = display.size
+
+        if (rotate := self.rotate_180):
+            yrange = range(height - 1, -1, -1)
+        else:
+            yrange = range(height)
+
+        offset = self.offset
+        set_pixel = display.set_pixel
+        for x, bits in enumerate(self.BITMAP):
+            bx = width - x + offset
+            if rotate:
+                x = width - 1 - x
+            mask = 1
+            for y in yrange:
+                bit_set = bits & mask
+                mask <<= 1
+                if not bit_set:
+                    continue
+                v = 192 if ((bx - abs(y - 3)) & 2) else 160
+                set_pixel(x, y, v)
 
 
 def main(*args, **kwargs):
