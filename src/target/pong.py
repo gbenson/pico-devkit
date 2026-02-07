@@ -15,7 +15,7 @@ ALL_BUTTONS_UP = object()
 
 
 class Game(FPSRunner):
-    DEBOUNCE = 0.5
+    DEBOUNCE = 0.25
 
     def __init__(self, scroll=None, **kwargs):
         super().__init__(**kwargs)
@@ -39,6 +39,14 @@ class Game(FPSRunner):
         self.draw_players = True
         self.animation = None
         self.wait_for_button_press()
+
+    def start_countdown(self, duration=2):
+        self.state = COUNTDOWN
+        self.draw_ball = False
+        self.draw_field = False
+        self.draw_players = True
+        self.animation = CountdownAnimation()
+        self.countdown = duration
 
     def congratulate(self, player):
         self.state = PLAYER_SCORED
@@ -80,11 +88,10 @@ class Game(FPSRunner):
             if any(b.is_pressed() for b in self.buttons):
                 return
             self._awaiting_interaction = None
-            self.animation = None
-            self.draw_field = True
-            self.draw_players = True
-            self.countdown = 2
-            self.state = COUNTDOWN
+            if self.state is PLAYER_SCORED:
+                self.reset()
+            else:
+                self.start_countdown()
             return
 
         for p in self.players:
@@ -94,8 +101,10 @@ class Game(FPSRunner):
             self.countdown -= delta_t
             if self.countdown > 0:
                 return
+            self.animation = None
             self.ball.reset()
             self.draw_ball = True
+            self.draw_field = True
             self.state = RUNNING
             return
 
@@ -329,6 +338,30 @@ class Ball:
                 (xbd, ycd, vbd * vcd)):
             if 0 <= x < 17 and 0 <= y < 7:
                 set_pixel(x, y, v * 255)
+
+
+class CountdownAnimation:
+    def __init__(self):
+        self.value = 0
+        self.speed = 4
+
+    def update(self, delta_t):
+        self.value += delta_t * self.speed
+
+    def draw(self, display):
+        width, height = display.size
+        x = width // 2
+
+        set_pixel = display.set_pixel
+        value = int(self.value)
+        if value == 0:
+            lit = -1
+        else:
+            lit = (value - 1) % height
+        for y in range(height):
+            if y & 1:
+                continue
+            set_pixel(x, y, 255 if y == lit else 64 if lit & 1 else 128)
 
 
 class ScoreAnimation:
