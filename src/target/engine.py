@@ -5,21 +5,21 @@ _S_TO_US = 1_000_000
 _US_TO_S = 1 / _S_TO_US
 
 
-class Clock:
-    def __init__(self, max_framerate=60):
-        self.max_framerate = max_framerate
+class RateLimiter:
+    def __init__(self, max_rate=None):
+        self.max_rate = max_rate
         self._last_tick = None
 
     @property
-    def max_framerate(self):
+    def max_rate(self):
         min_interval = self.min_interval
         if min_interval:
             return 1 / min_interval
 
-    @max_framerate.setter
-    def max_framerate(self, max_framerate):
-        if max_framerate:
-            self.min_interval = 1 / max_framerate
+    @max_rate.setter
+    def max_rate(self, max_rate):
+        if max_rate:
+            self.min_interval = 1 / max_rate
         else:
             self.min_interval = None
 
@@ -43,10 +43,10 @@ class Clock:
             value = 0
         self._min_interval_us = value
 
-    def advance(self):
-        return self.advance_us() * _US_TO_S
+    def wait(self):
+        return self.wait_us() * _US_TO_S
 
-    def advance_us(self):
+    def wait_us(self):
         self._maybe_wait()
         this_tick = ticks_us()
         self._last_tick = this_tick
@@ -68,13 +68,22 @@ class Clock:
 
 
 class FrameTicker:
-    def __init__(self, *, clock=None):
-        self.clock = clock or Clock()
+    def __init__(self, *, limiter=None, max_framerate=60):
+        self._limiter = limiter or RateLimiter()
+        self.max_framerate = max_framerate
+
+    @property
+    def max_framerate(self):
+        return self._limiter.max_rate
+
+    @max_framerate.setter
+    def max_framerate(self, max_framerate):
+        self._limiter.max_rate = max_framerate
 
     def run(self):
-        last_time = self.clock.advance()
+        last_time = self._limiter.wait()
         while True:
-            time = self.clock.advance()
+            time = self._limiter.wait()
             self.tick(time - last_time)
             last_time = time
 
