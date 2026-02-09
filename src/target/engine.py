@@ -67,7 +67,7 @@ class Clock:
         sleep_us(time_to_wait)
 
 
-class FPSRunner:
+class FrameTicker:
     def __init__(self, *, clock=None):
         self.clock = clock or Clock()
 

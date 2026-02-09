@@ -2,7 +2,7 @@ import random
 
 from math import atan2, cos, pi, sin, sqrt
 
-from engine import FPSRunner, PicoScroll
+from engine import FrameTicker, PicoScroll
 
 
 INSERT_COIN = object()
@@ -14,7 +14,7 @@ ANY_BUTTON_DOWN = object()
 ALL_BUTTONS_UP = object()
 
 
-class Game(FPSRunner):
+class Game(FrameTicker):
     DEBOUNCE = 0.25
 
     def __init__(self, scroll=None, **kwargs):
